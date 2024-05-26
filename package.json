@@ -20,7 +20,9 @@
     "knex": "^2.4.0",
     "lodash": "^4.17.21",
     "npm-check-updates": "^16.0.5",
-    "popper.js": "^1.16.1"
+    "on-change": "^5.0.1",
+    "popper.js": "^1.16.1",
+    "yup": "^1.4.0"
   },
   "devDependencies": {
     "@webpack-cli/generators": "^3.0.7",
