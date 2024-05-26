@@ -6,3 +6,9 @@ start:
 
 lint:
 	npx eslint .
+
+build:
+	rm -rf dist & NODE_ENV=production npx webpack
+
+build_production:
+	NODE_ENV=production npx webpack
