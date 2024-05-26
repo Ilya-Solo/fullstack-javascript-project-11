@@ -6,29 +6,35 @@ import * as yup from 'yup';
 
 const form = document.querySelector('.rss-form');
 const input = form.querySelector('input');
-const errorMessageEl = document.querySelector('.feedback');
+const validationMessageEl = document.querySelector('.feedback');
 
 const state = {
     form: {
-        isValid: true,
-        errorMessage: '',
+        isValid: null,
+        validationMessage: '',
     },
+    streams: [],
     uiState: {}
 }
 
 const renderForm = (state) => {
     input.classList.remove('is-invalid');
-    errorMessageEl.classList.remove('text-danger');
-    errorMessageEl.textContent = '';
+    validationMessageEl.classList.remove('text-danger', 'text-success');
+    validationMessageEl.textContent = '';
+
     if(!state.form.isValid) {
         input.classList.add('is-invalid');
-        errorMessageEl.classList.add('text-danger');
-        errorMessageEl.textContent = state.form.errorMessage;
+        validationMessageEl.classList.add('text-danger');
+        validationMessageEl.textContent = state.form.validationMessage;
+    } else {
+        form.reset();
+        validationMessageEl.classList.add('text-success');
+        validationMessageEl.textContent = state.form.validationMessage;
     }
 }
 
 const watchedState = onChange(state, (path, value, previousValue) => {
-    if (path === "form.isValid" && value !== previousValue) {
+    if (path === "form.isValid" || path === "form.validationMessage") {
         renderForm(watchedState);
     }
     
@@ -40,11 +46,18 @@ form.addEventListener('submit', (e) => {
     const validUrl = data.get('url')
     urlSchema.validate(validUrl)
         .then(() => {
-            watchedState.form.errorMessage = '';
+            if (watchedState.streams.includes(validUrl)) {
+                throw new Error('RSS уже существует');
+            }
+        })
+        .then(() => {
+            watchedState.streams.push(validUrl);
+            watchedState.form.validationMessage = 'RSS успешно загружен'
             watchedState.form.isValid = true;
         })
         .catch(error => {
-            watchedState.form.errorMessage = error.message;
+            watchedState.form.validationMessage = '';
+            watchedState.form.validationMessage = error.message;
             watchedState.form.isValid = false;
         });
     // console.log(data.get('url'));
