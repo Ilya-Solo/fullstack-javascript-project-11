@@ -6,6 +6,13 @@ import i18next from 'i18next';
 import resources from './locales/index'
 import axios from 'axios'
 
+const i18nInstance = i18next.createInstance();
+  i18nInstance.init({
+    lng: 'ru',
+    debug: false,
+    resources
+  })
+
 const makeGenerateUniqueId = () => {
   let currentId = 0; // Initialize the counter
   return () => {
@@ -42,7 +49,7 @@ const parsePosts = (channelEl) => {
       posts.push(postObject);
     })
 
-  return posts
+  return posts;
 }
 
 const parseResponse = (response) => {
@@ -69,10 +76,16 @@ const createFeed = (rssData, state) => {
 }
 
 const updatePosts = (rssData, feed, state) => {
+  const posts = rssData.posts.filter((post) => post.updatedAt > feed.updatedAt);
+  console.log(posts);
+  console.log(rssData.posts);
+  console.log(JSON.stringify(feed));
   rssData.posts.filter((post) => post.updatedAt > feed.updatedAt)
     .forEach((post) => {
       state.posts.push(post)
     })
+
+  state.changeState.posts += 1;
 }
 
 const updateFeed = (rssData, state) => {
@@ -80,12 +93,14 @@ const updateFeed = (rssData, state) => {
   feed.title = feed.title ?? rssData.feed.title;
   feed.description = feed.description ?? rssData.feed.description;
   feed.updatedAt = rssData.feed.updatedAt;
+  console.log(JSON.stringify(feed));
+  state.changeState.feeds += 1;
 }
 
 const updateFeedPostsData = (rssData, state) => {
   const feed = createFeed(rssData, state);
   updatePosts(rssData, feed, state);
-  updateFeed(rssData, state)
+  updateFeed(rssData, state);
 }
 
 const crawlAndUpdateStream = (streamUrl, state) => (
@@ -96,35 +111,80 @@ const crawlAndUpdateStream = (streamUrl, state) => (
     })
 )
 
-const renderPosts = (state) => {
-  const posts = state.posts;
-  const postsContainer = document.querySelector('.posts')
-  postsContainer.innerHTML = ''
+const setCrawlingAndUpdatingStream = (streamUrl, state) => (
+  crawlAndUpdateStream(streamUrl, state)
+    .then(() => setTimeout(() => setCrawlingAndUpdatingStream(streamUrl, state), 5000))
+)
+
+const renderFeeds = (state) => {
+  const feeds = state.feeds;
+  const feedsContainer = document.querySelector('.feeds')
+  feedsContainer.innerHTML = ''
+
   const card = document.createElement('div');
   card.className = 'card border-0';
   card.setAttribute('bis_skin_checked', '1');
 
-  // Create card body
   const cardBody = document.createElement('div');
   cardBody.className = 'card-body';
   cardBody.setAttribute('bis_skin_checked', '1');
 
-  // Create card title
   const cardTitle = document.createElement('h2');
   cardTitle.className = 'card-title h4';
-  cardTitle.textContent = 'Посты';
+  cardTitle.textContent = i18nInstance.t('fields.feeds');
 
-  // Append card title to card body
   cardBody.appendChild(cardTitle);
-
-  // Append card body to card
   card.appendChild(cardBody);
 
-  // Create list group
   const listGroup = document.createElement('ul');
   listGroup.className = 'list-group border-0 rounded-0';
 
-  // Create list items
+  feeds.forEach((feed) => {
+    const listItem = document.createElement('li');
+    listItem.className = "list-group-item border-0 border-end-0";
+
+    const title = document.createElement('h3');
+    title.className = 'h6 m-0';
+    title.innerText = feed.title;
+
+    const description = document.createElement('p');
+    description.className = 'm-0 small text-black-50';
+    description.textContent = feed.description;
+
+    listItem.appendChild(title);
+    listItem.appendChild(description);
+    listGroup.appendChild(listItem);
+  })
+
+  card.appendChild(listGroup);
+
+  feedsContainer.appendChild(card);
+}
+
+const renderPosts = (state) => {
+  const posts = state.posts;
+  const postsContainer = document.querySelector('.posts')
+  postsContainer.innerHTML = ''
+
+  const card = document.createElement('div');
+  card.className = 'card border-0';
+  card.setAttribute('bis_skin_checked', '1');
+
+  const cardBody = document.createElement('div');
+  cardBody.className = 'card-body';
+  cardBody.setAttribute('bis_skin_checked', '1');
+
+  const cardTitle = document.createElement('h2');
+  cardTitle.className = 'card-title h4';
+  cardTitle.textContent = i18nInstance.t('fields.posts');
+
+  cardBody.appendChild(cardTitle);
+
+  card.appendChild(cardBody);
+
+  const listGroup = document.createElement('ul');
+  listGroup.className = 'list-group border-0 rounded-0';
+
   posts.forEach(post => {
       const listItem = document.createElement('li');
       listItem.className = 'list-group-item d-flex justify-content-between align-items-start border-0 border-end-0';
@@ -143,33 +203,19 @@ const renderPosts = (state) => {
       button.dataset.id = post.id;
       button.dataset.bsToggle = 'modal';
       button.dataset.bsTarget = '#modal';
-      button.textContent = 'Просмотр';
+      button.textContent = i18nInstance.t('fields.view');
 
       listItem.appendChild(link);
       listItem.appendChild(button);
       listGroup.appendChild(listItem);
   });
 
-  // Append list group to card
   card.appendChild(listGroup);
 
-  // Append card to the body or any specific container
   postsContainer.appendChild(card);
 }
 
-// const renderStreamsInfo = (state) => {
-//   renderPosts(state)
-// }
-
-
-
 const app = () => {
-  const i18nInstance = i18next.createInstance();
-  i18nInstance.init({
-    lng: 'ru', // default language
-    debug: false, // enables debug mode for development
-    resources
-  })
 
   const form = document.querySelector('.rss-form');
   const input = form.querySelector('input');
@@ -180,6 +226,10 @@ const app = () => {
       isValid: null,
       validationMessageName: '',
     },
+    changeState: {
+      feeds: 0,
+      posts: 0,
+    },
     feeds: [],
     posts: [],
     uiState: {}
@@ -188,8 +238,10 @@ const app = () => {
   const watchedState = onChange(state, (path) => {
     if (path === "form.isValid" || path === "form.validationMessageName") {
       renderForm(watchedState);
-    } else if (path === "posts") {
+    } else if (path === "changeState.posts") {
       renderPosts(watchedState);
+    } else if (path === "changeState.feeds") {
+      renderFeeds(watchedState);
     }
   })
 
@@ -227,12 +279,15 @@ const app = () => {
       .then(() => {
         watchedState.form.isValid = true;
         watchedState.form.validationMessageName = 'successMessage';
-        console.log(JSON.stringify(watchedState))
       })
       .catch(error => {
         watchedState.form.isValid = false;
         watchedState.form.validationMessageName = error.name;
+      }).then(() => {
+        setCrawlingAndUpdatingStream(validUrl, watchedState);
       });
+
+    
   })
 }
 
