@@ -29,12 +29,9 @@ const generatePostId = makeGenerateUniqueId();
 const parseFeedObject = (channelEl, response) => {
   const title = channelEl.querySelector('channel title').textContent;
   const description = channelEl.querySelector('channel description').textContent;
-  const updatedAtString = channelEl.querySelector('channel lastBuildDate').textContent;
-  const date = new Date(updatedAtString);
-  const updatedAt = date.getTime();
   const url = response.data.status.url;
 
-  return { title, description, updatedAt, url };
+  return { title, description,  url };
 };
 
 // Function to parse posts from the response
@@ -73,7 +70,7 @@ const createFeed = (rssData, state) => {
   const isFeedExist = state.feeds.find((feed) => feed.url === url);
 
   if (!isFeedExist) {
-    state.feeds.push({ url, updatedAt: 0 });
+    state.feeds.push({ url});
   }
 
   return state.feeds.find((feed) => feed.url === url);
@@ -82,7 +79,7 @@ const createFeed = (rssData, state) => {
 // Function to update posts
 const updatePosts = (rssData, feed, state) => {
   rssData.posts
-    .filter((post) => post.updatedAt > feed.updatedAt)
+    .filter((post) => !state.posts.some((savedPost) => savedPost.title === post.title))
     .forEach((post) => {
       state.posts.push({ ...post, id: generatePostId() });
     });
@@ -95,7 +92,6 @@ const updateFeed = (rssData, state) => {
   const feed = state.feeds.find((feed) => feed.url === rssData.feed.url);
   feed.title = feed.title ?? rssData.feed.title;
   feed.description = feed.description ?? rssData.feed.description;
-  feed.updatedAt = rssData.feed.updatedAt;
   state.changeState.feeds += 1;
 };
 
@@ -255,6 +251,7 @@ const app = () => {
       feeds: 0,
       posts: 0,
       modal: 0,
+      form: 0,
     },
     feeds: [],
     posts: [],
@@ -264,7 +261,7 @@ const app = () => {
   };
 
   const watchedState = onChange(state, (path) => {
-    if (path === 'form.isValid' || path === 'form.validationMessageName') {
+    if (path === 'changeState.form') {
       renderForm(watchedState);
     } else if (path === 'changeState.posts') {
       renderPosts(watchedState);
@@ -277,6 +274,7 @@ const app = () => {
 
   // Function to render form
   const renderForm = (state) => {
+    console.log('dasa')
     input.classList.remove('is-invalid');
     validationMessageEl.classList.remove('text-danger', 'text-success');
     validationMessageEl.textContent = '';
@@ -309,15 +307,17 @@ const app = () => {
       })
       .then(() => crawlAndUpdateStream(validUrl, watchedState))
       .then(() => {
-        watchedState.form.isValid = true;
-        watchedState.form.validationMessageName = 'successMessage';
+        setCrawlingAndUpdatingStream(validUrl, watchedState);
       })
       .then(() => {
-        setCrawlingAndUpdatingStream(validUrl, watchedState);
+        watchedState.form.isValid = true;
+        watchedState.form.validationMessageName = 'successMessage';
+        watchedState.changeState.form += 1;
       })
       .catch((error) => {
         watchedState.form.isValid = false;
         watchedState.form.validationMessageName = error.name;
+        watchedState.changeState.form += 1;
       });
   });
 };
