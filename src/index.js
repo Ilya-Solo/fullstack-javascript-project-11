@@ -45,7 +45,7 @@ const parsePosts = (channelEl) => {
       const updatedAtString =  itemEl.querySelector('pubDate').textContent;
       const date = new Date(updatedAtString);
       const updatedAt = date.getTime();
-      const postObject = {title, link, description, updatedAt, id: generatePostId()};
+      const postObject = {title, link, description, updatedAt};
       posts.push(postObject);
     })
 
@@ -59,7 +59,6 @@ const parseResponse = (response) => {
 
   const feed = parseFeedObject(channelEl, response);
   const posts = parsePosts(channelEl);
-
   
   return {feed, posts};
 }
@@ -76,13 +75,9 @@ const createFeed = (rssData, state) => {
 }
 
 const updatePosts = (rssData, feed, state) => {
-  const posts = rssData.posts.filter((post) => post.updatedAt > feed.updatedAt);
-  console.log(posts);
-  console.log(rssData.posts);
-  console.log(JSON.stringify(feed));
   rssData.posts.filter((post) => post.updatedAt > feed.updatedAt)
     .forEach((post) => {
-      state.posts.push(post)
+      state.posts.push({...post, id: generatePostId()})
     })
 
   state.changeState.posts += 1;
@@ -93,7 +88,6 @@ const updateFeed = (rssData, state) => {
   feed.title = feed.title ?? rssData.feed.title;
   feed.description = feed.description ?? rssData.feed.description;
   feed.updatedAt = rssData.feed.updatedAt;
-  console.log(JSON.stringify(feed));
   state.changeState.feeds += 1;
 }
 
@@ -104,10 +98,10 @@ const updateFeedPostsData = (rssData, state) => {
 }
 
 const crawlAndUpdateStream = (streamUrl, state) => (
-  axios(`https://allorigins.hexlet.app/get?url=${streamUrl}`)
+  axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`)
     .then((response) => {
       const rssData = parseResponse(response);
-      updateFeedPostsData(rssData, state)
+      updateFeedPostsData(rssData, state);
     })
 )
 
@@ -191,11 +185,16 @@ const renderPosts = (state) => {
 
       const link = document.createElement('a');
       link.href = post.link;
-      link.className = 'fw-bold';
+      link.className = state.uiState.watchedPosts[post.id] ? 'fw-normal link-secondary' : 'fw-bold';
       link.dataset.id = post.id;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = post.title;
+      link.addEventListener('click', () => {
+        state.uiState.watchedPosts[post.id] = true;
+
+        state.changeState.posts += 1;
+      })
 
       const button = document.createElement('button');
       button.type = 'button';
@@ -204,6 +203,12 @@ const renderPosts = (state) => {
       button.dataset.bsToggle = 'modal';
       button.dataset.bsTarget = '#modal';
       button.textContent = i18nInstance.t('fields.view');
+      button.addEventListener('click', () => {
+        state.uiState.watchedPosts[post.id] = true;
+        state.changeState.posts += 1;
+        state.uiState.modalData = post;
+        state.changeState.modal += 1;
+      })
 
       listItem.appendChild(link);
       listItem.appendChild(button);
@@ -213,6 +218,18 @@ const renderPosts = (state) => {
   card.appendChild(listGroup);
 
   postsContainer.appendChild(card);
+}
+
+const renderModal = (state) => {
+  const post = state.uiState.modalData;
+  const modal = document.querySelector('.modal-dialog');
+  const modalTile = modal.querySelector('.modal-title');
+  const modalBody = modal.querySelector('.modal-body');
+  const modalReadContent = modal.querySelector('.full-article');
+
+  modalTile.textContent = post.title;
+  modalBody.textContent = post.description;
+  modalReadContent.setAttribute('href', post.link);
 }
 
 const app = () => {
@@ -229,10 +246,13 @@ const app = () => {
     changeState: {
       feeds: 0,
       posts: 0,
+      modal: 0,
     },
     feeds: [],
     posts: [],
-    uiState: {}
+    uiState: {
+      watchedPosts: {}
+    }
   }
 
   const watchedState = onChange(state, (path) => {
@@ -242,6 +262,8 @@ const app = () => {
       renderPosts(watchedState);
     } else if (path === "changeState.feeds") {
       renderFeeds(watchedState);
+    } else if (path === "changeState.modal") {
+      renderModal(watchedState);
     }
   })
 
@@ -280,11 +302,12 @@ const app = () => {
         watchedState.form.isValid = true;
         watchedState.form.validationMessageName = 'successMessage';
       })
+      .then(() => {
+        setCrawlingAndUpdatingStream(validUrl, watchedState);
+      })
       .catch(error => {
         watchedState.form.isValid = false;
         watchedState.form.validationMessageName = error.name;
-      }).then(() => {
-        setCrawlingAndUpdatingStream(validUrl, watchedState);
       });
 
     
