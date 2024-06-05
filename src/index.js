@@ -6,7 +6,6 @@ import i18next from 'i18next';
 import resources from './locales/index';
 import axios from 'axios';
 
-// Initialize i18next instance for internationalization
 const i18nInstance = i18next.createInstance();
 i18nInstance.init({
   lng: 'ru',
@@ -14,7 +13,6 @@ i18nInstance.init({
   resources,
 });
 
-// Function to generate unique IDs
 const makeGenerateUniqueId = () => {
   let currentId = 0;
   return () => {
@@ -25,16 +23,16 @@ const makeGenerateUniqueId = () => {
 
 const generatePostId = makeGenerateUniqueId();
 
-// Function to parse feed object from the response
+// Controllers
+
 const parseFeedObject = (channelEl, response) => {
   const title = channelEl.querySelector('channel title').textContent;
   const description = channelEl.querySelector('channel description').textContent;
   const url = response.data.status.url;
 
-  return { title, description,  url };
+  return { title, description, url };
 };
 
-// Function to parse posts from the response
 const parsePosts = (channelEl) => {
   const posts = [];
 
@@ -52,7 +50,6 @@ const parsePosts = (channelEl) => {
   return posts;
 };
 
-// Function to parse the entire response
 const parseResponse = (response) => {
   const parser = new DOMParser();
   const xml = parser.parseFromString(response.data.contents, 'application/xml');
@@ -64,19 +61,17 @@ const parseResponse = (response) => {
   return { feed, posts };
 };
 
-// Function to create a feed
 const createFeed = (rssData, state) => {
   const url = rssData.feed.url;
   const isFeedExist = state.feeds.find((feed) => feed.url === url);
 
   if (!isFeedExist) {
-    state.feeds.push({ url});
+    state.feeds.push({ url });
   }
 
   return state.feeds.find((feed) => feed.url === url);
 };
 
-// Function to update posts
 const updatePosts = (rssData, feed, state) => {
   rssData.posts
     .filter((post) => !state.posts.some((savedPost) => savedPost.title === post.title))
@@ -87,7 +82,6 @@ const updatePosts = (rssData, feed, state) => {
   state.changeState.posts += 1;
 };
 
-// Function to update feed
 const updateFeed = (rssData, state) => {
   const feed = state.feeds.find((feed) => feed.url === rssData.feed.url);
   feed.title = feed.title ?? rssData.feed.title;
@@ -95,27 +89,76 @@ const updateFeed = (rssData, state) => {
   state.changeState.feeds += 1;
 };
 
-// Function to update feed and posts data
 const updateFeedPostsData = (rssData, state) => {
   const feed = createFeed(rssData, state);
   updatePosts(rssData, feed, state);
   updateFeed(rssData, state);
 };
 
-// Function to crawl and update stream
 const crawlAndUpdateStream = (streamUrl, state) =>
   axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`).then((response) => {
     const rssData = parseResponse(response);
     updateFeedPostsData(rssData, state);
   });
 
-// Function to set crawling and updating stream
 const setCrawlingAndUpdatingStream = (streamUrl, state) =>
   crawlAndUpdateStream(streamUrl, state).then(() =>
     setTimeout(() => setCrawlingAndUpdatingStream(streamUrl, state), 5000)
   );
 
-// Function to render feeds
+// State
+
+const state = {
+  form: {
+    isValid: null,
+    validationMessageName: '',
+  },
+  changeState: {
+    feeds: 0,
+    posts: 0,
+    modal: 0,
+    form: 0,
+  },
+  feeds: [],
+  posts: [],
+  uiState: {
+    watchedPosts: {},
+  },
+};
+
+const watchedState = onChange(state, (path) => {
+  if (path === 'changeState.form') {
+    renderForm(watchedState);
+  } else if (path === 'changeState.posts') {
+    renderPosts(watchedState);
+  } else if (path === 'changeState.feeds') {
+    renderFeeds(watchedState);
+  } else if (path === 'changeState.modal') {
+    renderModal(watchedState);
+  }
+});
+
+// Views
+
+const renderForm = (state) => {
+  const input = document.querySelector('.rss-form input');
+  const validationMessageEl = document.querySelector('.feedback');
+
+  input.classList.remove('is-invalid');
+  validationMessageEl.classList.remove('text-danger', 'text-success');
+  validationMessageEl.textContent = '';
+
+  if (state.form.isValid) {
+    const form = document.querySelector('.rss-form');
+    form.reset();
+    validationMessageEl.classList.add('text-success');
+  } else {
+    input.classList.add('is-invalid');
+    validationMessageEl.classList.add('text-danger');
+  }
+  validationMessageEl.textContent = i18nInstance.t(`validationMessages.${state.form.validationMessageName}`);
+};
+
 const renderFeeds = (state) => {
   const feeds = state.feeds;
   const feedsContainer = document.querySelector('.feeds');
@@ -160,7 +203,6 @@ const renderFeeds = (state) => {
   feedsContainer.appendChild(card);
 };
 
-// Function to render posts
 const renderPosts = (state) => {
   const posts = state.posts;
   const postsContainer = document.querySelector('.posts');
@@ -223,7 +265,6 @@ const renderPosts = (state) => {
   postsContainer.appendChild(card);
 };
 
-// Function to render modal
 const renderModal = (state) => {
   const post = state.uiState.modalData;
   const modal = document.querySelector('.modal-dialog');
@@ -236,60 +277,9 @@ const renderModal = (state) => {
   modalReadContent.setAttribute('href', post.link);
 };
 
-// Main application function
 const app = () => {
   const form = document.querySelector('.rss-form');
-  const input = form.querySelector('input');
-  const validationMessageEl = document.querySelector('.feedback');
 
-  const state = {
-    form: {
-      isValid: null,
-      validationMessageName: '',
-    },
-    changeState: {
-      feeds: 0,
-      posts: 0,
-      modal: 0,
-      form: 0,
-    },
-    feeds: [],
-    posts: [],
-    uiState: {
-      watchedPosts: {},
-    },
-  };
-
-  const watchedState = onChange(state, (path) => {
-    if (path === 'changeState.form') {
-      renderForm(watchedState);
-    } else if (path === 'changeState.posts') {
-      renderPosts(watchedState);
-    } else if (path === 'changeState.feeds') {
-      renderFeeds(watchedState);
-    } else if (path === 'changeState.modal') {
-      renderModal(watchedState);
-    }
-  });
-
-  // Function to render form
-  const renderForm = (state) => {
-    console.log('dasa')
-    input.classList.remove('is-invalid');
-    validationMessageEl.classList.remove('text-danger', 'text-success');
-    validationMessageEl.textContent = '';
-
-    if (state.form.isValid) {
-      form.reset();
-      validationMessageEl.classList.add('text-success');
-    } else {
-      input.classList.add('is-invalid');
-      validationMessageEl.classList.add('text-danger');
-    }
-    validationMessageEl.textContent = i18nInstance.t(`validationMessages.${state.form.validationMessageName}`);
-  };
-
-  // Form submit event listener
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = new FormData(e.target);
