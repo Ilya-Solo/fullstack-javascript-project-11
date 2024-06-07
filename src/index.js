@@ -17,7 +17,7 @@ function app() {
 
   function makeGenerateUniqueId() {
     let currentId = 0;
-    return function generator () {
+    return function generator() {
       currentId += 1;
       return `${currentId}`;
     };
@@ -77,7 +77,12 @@ function app() {
       const updatedAtString = itemEl.querySelector('pubDate').textContent;
       const date = new Date(updatedAtString);
       const updatedAt = date.getTime();
-      const postObject = { title, link, description, updatedAt };
+      const postObject = {
+        title,
+        link,
+        description,
+        updatedAt
+      };
       posts.push(postObject);
     });
 
@@ -100,7 +105,7 @@ function app() {
   }
 
   function createFeed(rssData) {
-    const url = rssData.feed.url;
+    const { url } = rssData.feed;
 
     if (!isFeedExists(url)) {
       watchedState.feeds.push({ url });
@@ -145,9 +150,7 @@ function app() {
   }
 
   function setCrawlingAndUpdatingStream(streamUrl) {
-    return crawlAndUpdateStream(streamUrl).then(() =>
-      setTimeout(() => setCrawlingAndUpdatingStream(streamUrl), 5000)
-    );
+    return crawlAndUpdateStream(streamUrl).then(() => setTimeout(() => setCrawlingAndUpdatingStream(streamUrl), 5000));
   }
 
   // Views
@@ -172,7 +175,7 @@ function app() {
   }
 
   function renderFeeds() {
-    const feeds = watchedState.feeds;
+    const { feeds } = watchedState;
     const feedsContainer = document.querySelector('.feeds');
     feedsContainer.innerHTML = '';
 
@@ -216,7 +219,7 @@ function app() {
   }
 
   function renderPosts() {
-    const posts = watchedState.posts;
+    const { posts } = watchedState;
     const postsContainer = document.querySelector('.posts');
     postsContainer.innerHTML = '';
 
@@ -291,7 +294,7 @@ function app() {
 
   const form = document.querySelector('.rss-form');
 
-  form.addEventListener('submit', function(event) {
+  form.addEventListener('submit', (event) => {
     event.preventDefault();
     const data = new FormData(event.target);
     const urlSchema = yup.string().url();

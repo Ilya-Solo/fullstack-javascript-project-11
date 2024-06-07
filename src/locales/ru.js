@@ -15,5 +15,5 @@ export default {
       projectDescription: 'Начните читать RSS сегодня! Это легко, это красиво.',
       example: 'Пример: https://lorem-rss.hexlet.app/feed',
     },
-  }
+  },
 };

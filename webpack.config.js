@@ -6,7 +6,6 @@ const WorkboxWebpackPlugin = require('workbox-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-
 const config = {
   entry: './src/index.js',
   output: {
@@ -23,9 +22,10 @@ const config = {
   ],
   module: {
     rules: [
-      { 
-        test: /\.css$/, 
-        use: ['style-loader', 'css-loader', 'postcss-loader'] },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader', 'postcss-loader']
+      },
       {
         test: /\.scss$/,
         use: ['style-loader', 'css-loader', 'sass-loader', 'postcss-loader'],
@@ -46,10 +46,9 @@ module.exports = () => {
   if (isProduction) {
     config.mode = 'production';
 
-    config.plugins.push(new WorkboxWebpackPlugin.GenerateSW());
-      
+    config.plugins.push(new WorkboxWebpackPlugin.GenerateSW()); 
   } else {
-      config.mode = 'development';
+    config.mode = 'development';
   }
   return config;
 };
