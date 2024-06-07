@@ -33,7 +33,7 @@ make build_production
 
 ## Deploying the Application
 
-The built application can be deployed and accessed through the following link: [RSS Reader Deployment](https://fullstack-javascript-project-11-qcv9.vercel.app/)
+The built application can be accessed through the following link: [RSS Reader Deployment](https://fullstack-javascript-project-11-qcv9.vercel.app/)
 
 ## Usage
 
