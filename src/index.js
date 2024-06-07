@@ -1,10 +1,11 @@
+/* eslint-disable no-use-before-define */
 import './styles.scss';
 import 'bootstrap';
 import onChange from 'on-change';
 import * as yup from 'yup';
 import i18next from 'i18next';
-import resources from './locales/index';
 import axios from 'axios';
+import resources from './locales/index';
 
 function app() {
   const i18nInstance = i18next.createInstance();
@@ -16,7 +17,7 @@ function app() {
 
   function makeGenerateUniqueId() {
     let currentId = 0;
-    return function() {
+    return function generator () {
       currentId += 1;
       return `${currentId}`;
     };
@@ -132,15 +133,15 @@ function app() {
 
   function crawlAndUpdateStream(streamUrl) {
     return axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`)
-    .catch((error) => {
-      const streamAlreadyExistsError = new Error();
-      streamAlreadyExistsError.name = 'networkError';
-      throw streamAlreadyExistsError;
-    })
-    .then((response) => {
-      const rssData = parseResponse(response, streamUrl);
-      updateFeedPostsData(rssData);
-    });
+      .catch(() => {
+        const streamAlreadyExistsError = new Error();
+        streamAlreadyExistsError.name = 'networkError';
+        throw streamAlreadyExistsError;
+      })
+      .then((response) => {
+        const rssData = parseResponse(response, streamUrl);
+        updateFeedPostsData(rssData);
+      });
   }
 
   function setCrawlingAndUpdatingStream(streamUrl) {
