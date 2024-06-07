@@ -81,7 +81,7 @@ function app() {
         title,
         link,
         description,
-        updatedAt
+        updatedAt,
       };
       posts.push(postObject);
     });
