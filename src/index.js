@@ -124,7 +124,7 @@ function app() {
   }
 
   function updateFeed(rssData) {
-    const feed = watchedState.feeds.find((feedObj) => feed.url === rssData.feed.url);
+    const feed = watchedState.feeds.find((feedObj) => feedObj.url === rssData.feed.url);
     feed.title = feed.title ?? rssData.feed.title;
     feed.description = feed.description ?? rssData.feed.description;
     watchedState.changeState.feeds += 1;
