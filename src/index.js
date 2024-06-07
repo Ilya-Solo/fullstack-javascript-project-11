@@ -6,24 +6,23 @@ import i18next from 'i18next';
 import resources from './locales/index';
 import axios from 'axios';
 
-const i18nInstance = i18next.createInstance();
-i18nInstance.init({
-  lng: 'ru',
-  debug: false,
-  resources,
-});
-
-function makeGenerateUniqueId() {
-  let currentId = 0;
-  return function() {
-    currentId += 1;
-    return `${currentId}`;
-  };
-}
-
-const generatePostId = makeGenerateUniqueId();
-
 function app() {
+  const i18nInstance = i18next.createInstance();
+  i18nInstance.init({
+    lng: 'ru',
+    debug: false,
+    resources,
+  });
+
+  function makeGenerateUniqueId() {
+    let currentId = 0;
+    return function() {
+      currentId += 1;
+      return `${currentId}`;
+    };
+  }
+
+  const generatePostId = makeGenerateUniqueId();
 
   // State
 
