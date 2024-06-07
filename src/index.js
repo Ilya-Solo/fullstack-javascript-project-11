@@ -81,7 +81,7 @@ function app() {
         title,
         link,
         description,
-        updatedAt
+        updatedAt,
       };
       posts.push(postObject);
     });
@@ -124,7 +124,7 @@ function app() {
   }
 
   function updateFeed(rssData) {
-    const feed = watchedState.feeds.find((feed) => feed.url === rssData.feed.url);
+    const feed = watchedState.feeds.find((feedObj) => feedObj.url === rssData.feed.url);
     feed.title = feed.title ?? rssData.feed.title;
     feed.description = feed.description ?? rssData.feed.description;
     watchedState.changeState.feeds += 1;
@@ -150,7 +150,12 @@ function app() {
   }
 
   function setCrawlingAndUpdatingStream(streamUrl) {
-    return crawlAndUpdateStream(streamUrl).then(() => setTimeout(() => setCrawlingAndUpdatingStream(streamUrl), 5000));
+    return crawlAndUpdateStream(streamUrl).then(() => 
+      setTimeout(
+        () => setCrawlingAndUpdatingStream(streamUrl), 
+        5000
+      )
+    );
   }
 
   // Views
