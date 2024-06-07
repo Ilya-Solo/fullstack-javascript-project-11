@@ -13,291 +13,296 @@ i18nInstance.init({
   resources,
 });
 
-const makeGenerateUniqueId = () => {
+function makeGenerateUniqueId() {
   let currentId = 0;
-  return () => {
+  return function() {
     currentId += 1;
     return `${currentId}`;
   };
-};
+}
 
 const generatePostId = makeGenerateUniqueId();
 
-// Controllers
+function app() {
 
-const parseFeedObject = (channelEl, response) => {
-  const title = channelEl.querySelector('channel title').textContent;
-  const description = channelEl.querySelector('channel description').textContent;
-  const url = response.data.status.url;
+  // State
 
-  return { title, description, url };
-};
+  const state = {
+    form: {
+      isValid: null,
+      validationMessageName: '',
+    },
+    changeState: {
+      feeds: 0,
+      posts: 0,
+      modal: 0,
+      form: 0,
+    },
+    feeds: [],
+    posts: [],
+    uiState: {
+      watchedPosts: {},
+    },
+  };
 
-const parsePosts = (channelEl) => {
-  const posts = [];
-
-  channelEl.querySelectorAll('item').forEach((itemEl) => {
-    const title = itemEl.querySelector('title').textContent;
-    const description = itemEl.querySelector('description').textContent;
-    const link = itemEl.querySelector('link').textContent;
-    const updatedAtString = itemEl.querySelector('pubDate').textContent;
-    const date = new Date(updatedAtString);
-    const updatedAt = date.getTime();
-    const postObject = { title, link, description, updatedAt };
-    posts.push(postObject);
+  const watchedState = onChange(state, (path) => {
+    if (path === 'changeState.form') {
+      renderForm();
+    } else if (path === 'changeState.posts') {
+      renderPosts();
+    } else if (path === 'changeState.feeds') {
+      renderFeeds();
+    } else if (path === 'changeState.modal') {
+      renderModal();
+    }
   });
 
-  return posts;
-};
+  // Controllers
 
-const parseResponse = (response) => {
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(response.data.contents, 'application/xml');
-  const channelEl = xml.querySelector('channel');
+  function parseFeedObject(channelEl, response) {
+    const title = channelEl.querySelector('channel title').textContent;
+    const description = channelEl.querySelector('channel description').textContent;
+    const url = response.data.status.url;
 
-  const feed = parseFeedObject(channelEl, response);
-  const posts = parsePosts(channelEl);
-
-  return { feed, posts };
-};
-
-const createFeed = (rssData, state) => {
-  const url = rssData.feed.url;
-  const isFeedExist = state.feeds.find((feed) => feed.url === url);
-
-  if (!isFeedExist) {
-    state.feeds.push({ url });
+    return { title, description, url };
   }
 
-  return state.feeds.find((feed) => feed.url === url);
-};
+  function parsePosts(channelEl) {
+    const posts = [];
 
-const updatePosts = (rssData, feed, state) => {
-  rssData.posts
-    .filter((post) => !state.posts.some((savedPost) => savedPost.title === post.title))
-    .forEach((post) => {
-      state.posts.push({ ...post, id: generatePostId() });
+    channelEl.querySelectorAll('item').forEach((itemEl) => {
+      const title = itemEl.querySelector('title').textContent;
+      const description = itemEl.querySelector('description').textContent;
+      const link = itemEl.querySelector('link').textContent;
+      const updatedAtString = itemEl.querySelector('pubDate').textContent;
+      const date = new Date(updatedAtString);
+      const updatedAt = date.getTime();
+      const postObject = { title, link, description, updatedAt };
+      posts.push(postObject);
     });
 
-  state.changeState.posts += 1;
-};
-
-const updateFeed = (rssData, state) => {
-  const feed = state.feeds.find((feed) => feed.url === rssData.feed.url);
-  feed.title = feed.title ?? rssData.feed.title;
-  feed.description = feed.description ?? rssData.feed.description;
-  state.changeState.feeds += 1;
-};
-
-const updateFeedPostsData = (rssData, state) => {
-  const feed = createFeed(rssData, state);
-  updatePosts(rssData, feed, state);
-  updateFeed(rssData, state);
-};
-
-const crawlAndUpdateStream = (streamUrl, state) =>
-  axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`).then((response) => {
-    const rssData = parseResponse(response);
-    updateFeedPostsData(rssData, state);
-  });
-
-const setCrawlingAndUpdatingStream = (streamUrl, state) =>
-  crawlAndUpdateStream(streamUrl, state).then(() =>
-    setTimeout(() => setCrawlingAndUpdatingStream(streamUrl, state), 5000)
-  );
-
-// State
-
-const state = {
-  form: {
-    isValid: null,
-    validationMessageName: '',
-  },
-  changeState: {
-    feeds: 0,
-    posts: 0,
-    modal: 0,
-    form: 0,
-  },
-  feeds: [],
-  posts: [],
-  uiState: {
-    watchedPosts: {},
-  },
-};
-
-const watchedState = onChange(state, (path) => {
-  if (path === 'changeState.form') {
-    renderForm(watchedState);
-  } else if (path === 'changeState.posts') {
-    renderPosts(watchedState);
-  } else if (path === 'changeState.feeds') {
-    renderFeeds(watchedState);
-  } else if (path === 'changeState.modal') {
-    renderModal(watchedState);
+    return posts;
   }
-});
 
-// Views
+  function parseResponse(response) {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(response.data.contents, 'application/xml');
+    const channelEl = xml.querySelector('channel');
 
-const renderForm = (state) => {
-  const input = document.querySelector('.rss-form input');
-  const validationMessageEl = document.querySelector('.feedback');
+    const feed = parseFeedObject(channelEl, response);
+    const posts = parsePosts(channelEl);
 
-  input.classList.remove('is-invalid');
-  validationMessageEl.classList.remove('text-danger', 'text-success');
-  validationMessageEl.textContent = '';
-
-  if (state.form.isValid) {
-    const form = document.querySelector('.rss-form');
-    form.reset();
-    validationMessageEl.classList.add('text-success');
-  } else {
-    input.classList.add('is-invalid');
-    validationMessageEl.classList.add('text-danger');
+    return { feed, posts };
   }
-  validationMessageEl.textContent = i18nInstance.t(`validationMessages.${state.form.validationMessageName}`);
-};
 
-const renderFeeds = (state) => {
-  const feeds = state.feeds;
-  const feedsContainer = document.querySelector('.feeds');
-  feedsContainer.innerHTML = '';
+  function isFeedExists(feedUrl) {
+    return watchedState.feeds.some((feed) => feed.url === feedUrl);
+  }
 
-  const card = document.createElement('div');
-  card.className = 'card border-0';
-  card.setAttribute('bis_skin_checked', '1');
+  function createFeed(rssData) {
+    const url = rssData.feed.url;
 
-  const cardBody = document.createElement('div');
-  cardBody.className = 'card-body';
-  cardBody.setAttribute('bis_skin_checked', '1');
+    if (!isFeedExists(url)) {
+      watchedState.feeds.push({ url });
+    }
+  }
 
-  const cardTitle = document.createElement('h2');
-  cardTitle.className = 'card-title h4';
-  cardTitle.textContent = i18nInstance.t('fields.feeds');
+  function updatePosts(rssData) {
+    rssData.posts
+      .filter((post) => !watchedState.posts.some((savedPost) => savedPost.title === post.title))
+      .reverse()
+      .forEach((post) => {
+        watchedState.posts.push({ ...post, id: generatePostId() });
+      });
 
-  cardBody.appendChild(cardTitle);
-  card.appendChild(cardBody);
+    watchedState.changeState.posts += 1;
+  }
 
-  const listGroup = document.createElement('ul');
-  listGroup.className = 'list-group border-0 rounded-0';
+  function updateFeed(rssData) {
+    const feed = watchedState.feeds.find((feed) => feed.url === rssData.feed.url);
+    feed.title = feed.title ?? rssData.feed.title;
+    feed.description = feed.description ?? rssData.feed.description;
+    watchedState.changeState.feeds += 1;
+  }
 
-  feeds.forEach((feed) => {
-    const listItem = document.createElement('li');
-    listItem.className = 'list-group-item border-0 border-end-0';
+  function updateFeedPostsData(rssData) {
+    createFeed(rssData);
+    updatePosts(rssData);
+    updateFeed(rssData);
+  }
 
-    const title = document.createElement('h3');
-    title.className = 'h6 m-0';
-    title.innerText = feed.title;
+  function crawlAndUpdateStream(streamUrl) {
+    return axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`).then((response) => {
+      const rssData = parseResponse(response);
+      updateFeedPostsData(rssData);
+    });
+  }
 
-    const description = document.createElement('p');
-    description.className = 'm-0 small text-black-50';
-    description.textContent = feed.description;
+  function setCrawlingAndUpdatingStream(streamUrl) {
+    return crawlAndUpdateStream(streamUrl).then(() =>
+      setTimeout(() => setCrawlingAndUpdatingStream(streamUrl), 5000)
+    );
+  }
 
-    listItem.appendChild(title);
-    listItem.appendChild(description);
-    listGroup.appendChild(listItem);
-  });
+  // Views
 
-  card.appendChild(listGroup);
-  feedsContainer.appendChild(card);
-};
+  function renderForm() {
+    const input = document.querySelector('.rss-form input');
+    const validationMessageEl = document.querySelector('.feedback');
 
-const renderPosts = (state) => {
-  const posts = state.posts;
-  const postsContainer = document.querySelector('.posts');
-  postsContainer.innerHTML = '';
+    input.classList.remove('is-invalid');
+    validationMessageEl.classList.remove('text-danger', 'text-success');
+    validationMessageEl.textContent = '';
 
-  const card = document.createElement('div');
-  card.className = 'card border-0';
-  card.setAttribute('bis_skin_checked', '1');
+    if (watchedState.form.isValid) {
+      const form = document.querySelector('.rss-form');
+      form.reset();
+      validationMessageEl.classList.add('text-success');
+    } else {
+      input.classList.add('is-invalid');
+      validationMessageEl.classList.add('text-danger');
+    }
+    validationMessageEl.textContent = i18nInstance.t(`validationMessages.${watchedState.form.validationMessageName}`);
+  }
 
-  const cardBody = document.createElement('div');
-  cardBody.className = 'card-body';
-  cardBody.setAttribute('bis_skin_checked', '1');
+  function renderFeeds() {
+    const feeds = watchedState.feeds;
+    const feedsContainer = document.querySelector('.feeds');
+    feedsContainer.innerHTML = '';
 
-  const cardTitle = document.createElement('h2');
-  cardTitle.className = 'card-title h4';
-  cardTitle.textContent = i18nInstance.t('fields.posts');
+    const card = document.createElement('div');
+    card.className = 'card border-0';
+    card.setAttribute('bis_skin_checked', '1');
 
-  cardBody.appendChild(cardTitle);
-  card.appendChild(cardBody);
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    cardBody.setAttribute('bis_skin_checked', '1');
 
-  const listGroup = document.createElement('ul');
-  listGroup.className = 'list-group border-0 rounded-0';
+    const cardTitle = document.createElement('h2');
+    cardTitle.className = 'card-title h4';
+    cardTitle.textContent = i18nInstance.t('fields.feeds');
 
-  posts.forEach((post) => {
-    const listItem = document.createElement('li');
-    listItem.className = 'list-group-item d-flex justify-content-between align-items-start border-0 border-end-0';
+    cardBody.appendChild(cardTitle);
+    card.appendChild(cardBody);
 
-    const link = document.createElement('a');
-    link.href = post.link;
-    link.className = state.uiState.watchedPosts[post.id] ? 'fw-normal link-secondary' : 'fw-bold';
-    link.dataset.id = post.id;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = post.title;
-    link.addEventListener('click', () => {
-      state.uiState.watchedPosts[post.id] = true;
-      state.changeState.posts += 1;
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group border-0 rounded-0';
+
+    feeds.forEach((feed) => {
+      const listItem = document.createElement('li');
+      listItem.className = 'list-group-item border-0 border-end-0';
+
+      const title = document.createElement('h3');
+      title.className = 'h6 m-0';
+      title.innerText = feed.title;
+
+      const description = document.createElement('p');
+      description.className = 'm-0 small text-black-50';
+      description.textContent = feed.description;
+
+      listItem.appendChild(title);
+      listItem.appendChild(description);
+      listGroup.appendChild(listItem);
     });
 
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'btn btn-outline-primary btn-sm';
-    button.dataset.id = post.id;
-    button.dataset.bsToggle = 'modal';
-    button.dataset.bsTarget = '#modal';
-    button.textContent = i18nInstance.t('fields.view');
-    button.addEventListener('click', () => {
-      state.uiState.watchedPosts[post.id] = true;
-      state.changeState.posts += 1;
-      state.uiState.modalData = post;
-      state.changeState.modal += 1;
+    card.appendChild(listGroup);
+    feedsContainer.appendChild(card);
+  }
+
+  function renderPosts() {
+    const posts = watchedState.posts;
+    const postsContainer = document.querySelector('.posts');
+    postsContainer.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'card border-0';
+    card.setAttribute('bis_skin_checked', '1');
+
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    cardBody.setAttribute('bis_skin_checked', '1');
+
+    const cardTitle = document.createElement('h2');
+    cardTitle.className = 'card-title h4';
+    cardTitle.textContent = i18nInstance.t('fields.posts');
+
+    cardBody.appendChild(cardTitle);
+    card.appendChild(cardBody);
+
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group border-0 rounded-0';
+
+    posts.forEach((post) => {
+      const listItem = document.createElement('li');
+      listItem.className = 'list-group-item d-flex justify-content-between align-items-start border-0 border-end-0';
+
+      const link = document.createElement('a');
+      link.href = post.link;
+      link.className = watchedState.uiState.watchedPosts[post.id] ? 'fw-normal link-secondary' : 'fw-bold';
+      link.dataset.id = post.id;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = post.title;
+      link.addEventListener('click', () => {
+        watchedState.uiState.watchedPosts[post.id] = true;
+        watchedState.changeState.posts += 1;
+      });
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-outline-primary btn-sm';
+      button.dataset.id = post.id;
+      button.dataset.bsToggle = 'modal';
+      button.dataset.bsTarget = '#modal';
+      button.textContent = i18nInstance.t('fields.view');
+      button.addEventListener('click', () => {
+        watchedState.uiState.watchedPosts[post.id] = true;
+        watchedState.changeState.posts += 1;
+        watchedState.uiState.modalData = post;
+        watchedState.changeState.modal += 1;
+      });
+
+      listItem.appendChild(link);
+      listItem.appendChild(button);
+      listGroup.appendChild(listItem);
     });
 
-    listItem.appendChild(link);
-    listItem.appendChild(button);
-    listGroup.appendChild(listItem);
-  });
+    card.appendChild(listGroup);
+    postsContainer.appendChild(card);
+  }
 
-  card.appendChild(listGroup);
-  postsContainer.appendChild(card);
-};
+  function renderModal() {
+    const post = watchedState.uiState.modalData;
+    const modal = document.querySelector('.modal-dialog');
+    const modalTile = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+    const modalReadContent = modal.querySelector('.full-article');
 
-const renderModal = (state) => {
-  const post = state.uiState.modalData;
-  const modal = document.querySelector('.modal-dialog');
-  const modalTile = modal.querySelector('.modal-title');
-  const modalBody = modal.querySelector('.modal-body');
-  const modalReadContent = modal.querySelector('.full-article');
+    modalTile.textContent = post.title;
+    modalBody.textContent = post.description;
+    modalReadContent.setAttribute('href', post.link);
+  }
 
-  modalTile.textContent = post.title;
-  modalBody.textContent = post.description;
-  modalReadContent.setAttribute('href', post.link);
-};
-
-const app = () => {
   const form = document.querySelector('.rss-form');
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const data = new FormData(e.target);
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const data = new FormData(event.target);
     const urlSchema = yup.string().url();
     const validUrl = data.get('url');
 
     urlSchema
       .validate(validUrl)
       .then(() => {
-        if (watchedState.feeds.some((feed) => feed.url === validUrl)) {
+        if (isFeedExists(validUrl)) {
           const streamAlreadyExistsError = new Error();
           streamAlreadyExistsError.name = 'streamAlreadyExistsError';
           throw streamAlreadyExistsError;
         }
       })
-      .then(() => crawlAndUpdateStream(validUrl, watchedState))
+      .then(() => crawlAndUpdateStream(validUrl))
       .then(() => {
-        setCrawlingAndUpdatingStream(validUrl, watchedState);
+        setCrawlingAndUpdatingStream(validUrl);
       })
       .then(() => {
         watchedState.form.isValid = true;
@@ -305,11 +310,12 @@ const app = () => {
         watchedState.changeState.form += 1;
       })
       .catch((error) => {
+        console.log(error);
         watchedState.form.isValid = false;
         watchedState.form.validationMessageName = error.name;
         watchedState.changeState.form += 1;
       });
   });
-};
+}
 
 app();
