@@ -131,7 +131,13 @@ function app() {
   }
 
   function crawlAndUpdateStream(streamUrl) {
-    return axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`).then((response) => {
+    return axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`)
+    .catch((error) => {
+      const streamAlreadyExistsError = new Error();
+      streamAlreadyExistsError.name = 'networkError';
+      throw streamAlreadyExistsError;
+    })
+    .then((response) => {
       const rssData = parseResponse(response, streamUrl);
       updateFeedPostsData(rssData);
     });
@@ -309,7 +315,6 @@ function app() {
         watchedState.changeState.form += 1;
       })
       .catch((error) => {
-        console.log(error);
         watchedState.form.isValid = false;
         watchedState.form.validationMessageName = error.name;
         watchedState.changeState.form += 1;
