@@ -58,10 +58,10 @@ function app() {
 
   // Controllers
 
-  function parseFeedObject(channelEl, response) {
+  function parseFeedObject(channelEl, streamUrl) {
     const title = channelEl.querySelector('channel title').textContent;
     const description = channelEl.querySelector('channel description').textContent;
-    const url = response.data.status.url;
+    const url = streamUrl;
 
     return { title, description, url };
   }
@@ -83,12 +83,12 @@ function app() {
     return posts;
   }
 
-  function parseResponse(response) {
+  function parseResponse(response, streamUrl) {
     const parser = new DOMParser();
     const xml = parser.parseFromString(response.data.contents, 'application/xml');
     const channelEl = xml.querySelector('channel');
 
-    const feed = parseFeedObject(channelEl, response);
+    const feed = parseFeedObject(channelEl, streamUrl);
     const posts = parsePosts(channelEl);
 
     return { feed, posts };
@@ -132,7 +132,7 @@ function app() {
 
   function crawlAndUpdateStream(streamUrl) {
     return axios(`https://allorigins.hexlet.app/get?disableCache=true&url=${streamUrl}`).then((response) => {
-      const rssData = parseResponse(response);
+      const rssData = parseResponse(response, streamUrl);
       updateFeedPostsData(rssData);
     });
   }
